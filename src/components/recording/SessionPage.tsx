@@ -23,7 +23,6 @@ const SessionPage: React.FC = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [isHostEnded, setIsHostEnded] = useState(false);
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -42,33 +41,53 @@ const SessionPage: React.FC = () => {
         setIsLoading(true);
         setError(null);
         
+        // Join session first to get session details
         if (!currentSession || currentSession.id !== id) {
           await joinSession(id);
         }
         
-        // Initialize media stream first
+        // Initialize media stream
         const stream = await mediaRecorderService.init({
           audio: true,
-          video: true
+          video: true,
+          audioConstraints: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          videoConstraints: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            frameRate: { ideal: 30 }
+          }
         });
         
+        // Store stream reference
         streamRef.current = stream;
         
+        // Set up local video
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
-          await localVideoRef.current.play();
+          try {
+            await localVideoRef.current.play();
+          } catch (err) {
+            console.error('Error playing local video:', err);
+          }
         }
 
         // Set up WebRTC handlers
         webRTCService.setOnParticipantStream((userId, stream) => {
+          console.log('Received participant stream:', userId);
           updateParticipant(userId, { stream });
         });
 
         webRTCService.setOnParticipantJoin((participant, isInitiator) => {
+          console.log('Participant joined:', participant.id, isInitiator);
           addParticipant(participant);
         });
 
         webRTCService.setOnParticipantLeave((userId) => {
+          console.log('Participant left:', userId);
           updateParticipant(userId, { isConnected: false });
         });
 
@@ -85,6 +104,7 @@ const SessionPage: React.FC = () => {
     
     setupSession();
     
+    // Cleanup function
     return () => {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -206,12 +226,13 @@ const SessionPage: React.FC = () => {
 
       <main className="flex-1 flex flex-col p-4 overflow-hidden">
         <div className={`grid gap-4 mb-4 ${calculateGridLayout(currentSession.participants.length)}`}>
+          {/* Local video */}
           <div className={`relative bg-gray-800 rounded-lg overflow-hidden ${videoHeight}`}>
             <video
               ref={localVideoRef}
               autoPlay
-              muted
               playsInline
+              muted
               className={`w-full h-full object-cover ${!videoEnabled ? 'hidden' : ''}`}
             />
             
@@ -232,16 +253,19 @@ const SessionPage: React.FC = () => {
               <div className="bg-black bg-opacity-50 px-2 py-1 rounded text-white text-sm flex items-center">
                 <span className="mr-2">{user?.name || 'You'} (You)</span>
                 {!audioEnabled && <MicOff size={16} className="text-red-500" />}
+                {!videoEnabled && <VideoOff size={16} className="ml-1 text-red-500" />}
               </div>
             </div>
           </div>
           
+          {/* Remote participants */}
           {currentSession.participants
             .filter(p => p.id !== user?.id)
             .map(participant => (
               <ParticipantVideo 
                 key={participant.id} 
                 participant={participant}
+                stream={participant.stream}
                 isHost={participant.id === currentSession.hostId}
               />
             ))}

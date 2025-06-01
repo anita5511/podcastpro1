@@ -17,6 +17,12 @@ const ParticipantVideo: React.FC<ParticipantVideoProps> = ({ participant, stream
       videoRef.current.srcObject = stream;
       videoRef.current.play().catch(err => console.error('Error playing remote video:', err));
     }
+    
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+    };
   }, [stream]);
 
   return (
@@ -26,7 +32,7 @@ const ParticipantVideo: React.FC<ParticipantVideoProps> = ({ participant, stream
           ref={videoRef}
           autoPlay
           playsInline
-          className="w-full h-full object-cover"
+          className="w-full h-full object-cover mirror-mode"
         />
       ) : (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-700">
@@ -56,6 +62,12 @@ const ParticipantVideo: React.FC<ParticipantVideoProps> = ({ participant, stream
           <span className="text-white">Disconnected</span>
         </div>
       )}
+
+      <style jsx>{`
+        .mirror-mode {
+          transform: rotateY(180deg);
+        }
+      `}</style>
     </div>
   );
 };

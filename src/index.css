@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Add custom styles for video mirroring */
+.mirror-mode {
+  transform: rotateY(180deg);
+}
+
+/* Optimize video rendering */
+video {
+  object-fit: cover;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Improve audio visualizer performance */
+canvas {
+  image-rendering: crisp-edges;
+  image-rendering: -webkit-optimize-contrast;
+}
